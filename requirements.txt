@@ -3,3 +3,5 @@ Flask-SQLAlchemy
 Flask-Cors
 Flask-JWT-Extended
 psycopg2-binary
+openai==0.28.0
+python-dotenv

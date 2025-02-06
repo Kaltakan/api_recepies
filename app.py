@@ -5,7 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
-import random
+import openai
+import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app)
@@ -13,7 +15,7 @@ CORS(app)
 # Configurazione: ricordati di sostituire i valori con quelli reali
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@localhost:5434/recipes'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Cambiare in produzione
+app.config['JWT_SECRET_KEY'] = 'ax019321kmamldafldraklerj012i3al,smkamsa!'  # Cambiare in produzione
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 
@@ -106,7 +108,7 @@ def delete_recipe(recipe_id):
 def toggle_public(recipe_id):
     user_id = get_jwt_identity()
     recipe = Recipe.query.get(recipe_id)
-    if recipe is None or recipe.user_id != user_id:
+    if recipe is None or recipe.user_id != int(user_id):
         return jsonify({"message": "Ricetta non trovata o non autorizzata"}), 404
     data = request.get_json()
     if "is_public" not in data:
@@ -130,16 +132,42 @@ def get_public_recipes():
     return jsonify(recipes_data), 200
 
 # Pagina “Mix It Up”: utilizza solo ricette pubbliche per il mix
-@app.route('/recipes/mix', methods=['GET'])
+@app.route('/recepies/mix', methods=['GET'])
 def mix_it_up():
+    # Recupera tutte le ricette pubbliche dal database
     recipes = Recipe.query.filter_by(is_public=True).all()
     if not recipes:
         return jsonify({"message": "Nessuna ricetta pubblica disponibile per il mix"}), 404
-    recipe1, recipe2 = random.sample(recipes, min(2, len(recipes)))
-    creative_title = f"{recipe1.title} & {recipe2.title} Fusion"
-    creative_description = f"Mix creativo: {recipe1.description} + {recipe2.description}"
-    mixed_recipe = {"title": creative_title, "description": creative_description}
-    return jsonify(mixed_recipe), 200
+
+    # Costruisce il prompt includendo le ricette pubbliche
+    prompt = "Combina in modo creativo le seguenti ricette e proponi una nuova ricetta innovativa:\n\n"
+    for recipe in recipes:
+        prompt += f"- {recipe.title}: {recipe.description}\n"
+    prompt += "\nRispondi con un titolo e una descrizione per la nuova ricetta."
+
+    # Imposta la tua API key da una variabile d'ambiente caricata con dotenv
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
+    if not openai.api_key:
+        return jsonify({"message": "API Key non configurata. Imposta la variabile OPENAI_API_KEY nel file .env."}), 500
+
+    try:
+        # Chiamata all'API di OpenAI con il modello GPT-3.5-turbo
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Sei un esperto chef creativo."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=200,
+        )
+    except Exception as e:
+        return jsonify({"message": "Errore durante la generazione della ricetta", "error": str(e)}), 500
+
+    # Estrae il testo generato dalla risposta
+    creative_recipe_text = response["choices"][0]["message"]["content"].strip()
+    
+    return jsonify({"creative_recipe": creative_recipe_text}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
