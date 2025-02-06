@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configurazione: ricordati di sostituire i valori con quelli reali
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@localhost:5434/recipes'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@localhost:5432/recipes'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'ax019321kmamldafldraklerj012i3al,smkamsa!'  # Cambiare in produzione
 db = SQLAlchemy(app)
